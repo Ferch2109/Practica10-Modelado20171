@@ -8,10 +8,10 @@ from xmlrpc.server import SimpleXMLRPCServer
 MainWindowUI, MainWindowBase = uic.loadUiType("servidor.ui")
 
 class Dir(Enum):
-	ARRIBA = 1
+	ARRIBA = 0
 	ABAJO = 2
 	IZQ = 3
-	DER = 4
+	DER = 1
 
 class Estado(Enum):
 	EN_MARCHA = 5
@@ -52,11 +52,12 @@ class Servidor(QtGui.QMainWindow):
 		self.columnas.valueChanged.connect( self.cambio_numero_celdas )
 		self.filas.valueChanged.connect( self.cambio_numero_celdas )
 		self.espera.valueChanged.connect( self.actualizar_espera )
-		self.estado_juego.clicked.connect( self.estado_del_juego )
+		self.estado_juego.clicked.connect( self.edo_del_juego )
 		self.termina_juego.clicked.connect( self.terminar_juego )
+		self.ping_pong.clicked.connect( self.ping )
 
 
-	def estado_del_juego( self ):
+	def edo_del_juego( self ):
 		if self.estado == Estado.EN_MARCHA:
 			self.iniciar_juego()
 			self.estado = Estado.PAUSADO
@@ -87,10 +88,10 @@ class Servidor(QtGui.QMainWindow):
 		self.estado_juego.setText( "PAUSAR JUEGO" )
 		self.snakes_bebes.append(Snake())
 		self.dibuja_snakes_bebes()
-		self.timer.timeout.connect( self.mueve_snakebb )
+		self.timer.timeout.connect( self.mueve_snakes )
 		self.timer.start( self.espera.value() )
 		self.tabla.installEventFilter( self )
-	
+
 
 	def pausar_juego( self ):
 		self.estado_juego.setText( "REANUDAR JUEGO" )
@@ -151,64 +152,101 @@ class Servidor(QtGui.QMainWindow):
 		return False
 
 
-	def mueve_snakebb( self ):
+	def avanza_snakebb( self, snake ):
+		if self.autocanibal_snake( snake ):
+			self.snakes_bebes.remove( snake )
+			self.poner_lienzo_celdas()
+			snake_bebesita = Snake()
+			self.snakes_bebes.append(snake_bebesita)
+		
+		self.tabla.item( snake.cuerpo_snake[0][0], snake.cuerpo_snake[0][1] ). setBackground( QtGui.QColor( 0, 0, 0 ) )
+		chachito = 0
+
+		for cachito_snake in snake.cuerpo_snake[ :len( snake.cuerpo_snake )-1 ]:
+			chachito += 1
+			cachito_snake[0] = snake.cuerpo_snake[chachito][0]
+			cachito_snake[1] = snake.cuerpo_snake[chachito][1]
+
+		if snake.direccion == Dir.ARRIBA:
+			if snake.cuerpo_snake[-1][0] != 0:
+				snake.cuerpo_snake[-1][0] -= 1
+			else:
+				snake.cuerpo_snake[-1][0] = self.tabla.rowCount()-1
+
+		if snake.direccion == Dir.ABAJO:
+			if snake.cuerpo_snake[-1][0]+1 < self.tabla.rowCount():
+				snake.cuerpo_snake[-1][0] += 1
+			else:
+				snake.cuerpo_snake[-1][0] = 0
+
+		if snake.direccion == Dir.DER:
+			if snake.cuerpo_snake[-1][1]+1 < self.tabla.columnCount():
+				snake.cuerpo_snake[-1][1] += 1
+			else:
+				snake.cuerpo_snake[-1][1] = 0
+
+		if snake.direccion == Dir.IZQ:
+			if snake.cuerpo_snake[-1][1] != 0:
+				snake.cuerpo_snake[-1][1] -= 1
+			else:
+				snake.cuerpo_snake[-1][1] = self.tabla.columnCount()-1
+
+
+	def mueve_snakes( self ):
 		for snake_bb in self.snakes_bebes:
-			if self.autocanibal_snake( snake_bb ): # :'c
-				self.snakes_bebes.remove( snake_bb )
-				self.poner_lienzo_celdas()
-				snake_bebesita = Snake()
-				self.snakes_bebes.append(snake_bebesita)
-			self.tabla.item( snake_bb.cuerpo_snake[0][0], snake_bb.cuerpo_snake[0][1] ). setBackground( QtGui.QColor( 0, 0, 0 ) )
-			chachito = 0
-
-			for cachito_snake_bb in snake_bb.cuerpo_snake[ :len( snake_bb.cuerpo_snake )-1 ]:
-				chachito += 1
-				cachito_snake_bb[0] = snake_bb.cuerpo_snake[chachito][0]
-				cachito_snake_bb[1] = snake_bb.cuerpo_snake[chachito][1]
-
-			if snake_bb.direccion == Dir.ARRIBA:
-				if snake_bb.cuerpo_snake[-1][0] != 0:
-					snake_bb.cuerpo_snake[-1][0] -= 1
-				else:
-					snake_bb.cuerpo_snake[-1][0] = self.tabla.rowCount()-1
-
-			if snake_bb.direccion == Dir.ABAJO:
-				if snake_bb.cuerpo_snake[-1][0]+1 < self.tabla.rowCount():
-					snake_bb.cuerpo_snake[-1][0] += 1
-				else:
-					snake_bb.cuerpo_snake[-1][0] = 0
-
-			if snake_bb.direccion == Dir.DER:
-				if snake_bb.cuerpo_snake[-1][1]+1 < self.tabla.columnCount():
-					snake_bb.cuerpo_snake[-1][1] += 1
-				else:
-					snake_bb.cuerpo_snake[-1][1] = 0
-
-			if snake_bb.direccion == Dir.IZQ:
-				if snake_bb.cuerpo_snake[-1][1] != 0:
-					snake_bb.cuerpo_snake[-1][1] -= 1
-				else:
-					snake_bb.cuerpo_snake[-1][1] = self.tabla.columnCount()-1
+			avanza_snakebb( snake_bb )
 
 		self.dibuja_snakes_bebes()
 
 
-	def conexion( self ):
-		servidor = SimpleXMLRPCServer( ( "localhost", self.puerto ) )
+	def ping( self ):
+		return "¡Pong!"
+
+	
+	def yo_juego( self ):
+		snake_bebesita = Snake()
+		return "{'id': "+snake_bebesita.id+", 'color':"+snake_bebesita.color+"}"
+
+
+	def busca_snakebb( self, id ):
+		for snake in snakes_bebes:
+			if snake.id == id:
+				return snake
+		return None
+
+
+	def cambia_direccion( self, id_snake, dir_snake ):
+		snake_bb = busca_snakebb( id_snake )
+
+		if snake_bb == None:
+			return
+
+		avanza_snakebb( snake_bb )
+
+
+	def estado_del_juego( self ): #Ya habia hecho una que se llamaba asi :'c
+		estado = "{'espera': "+str(self.espera)+", 'tamX': "+str(self.columnas)+", 'tamY': "+str(self.filas)+", 'viboras': ["
+
+		for snake_bb in snakes_bebes:
+			espera += "{'id': "+snake_bb.id+", "+"'camino': "+str(snake_bb.cuerpo_snake)+", "+"'color':"+snake_bb.color+"},"
+		return espera[:-1]+"]"
 
 
 class Snake():
 	def __init__( self ):
-		self.cuerpo_snake = [[0,0],[1,0],[2,0],[3,0],[4,0]]
+		global S
+		self.cuerpo_snake = [(0,0),(1,0),(2,0),(3,0),(4,0)]
+		self.id = "snakebb"+str(S)
 		self.tamanio = len( self.cuerpo_snake )
 		self.direccion = Dir.ABAJO
 		self.R, self.G, self.B = map( int, colores_bonis().split(" ") )
+		self.color = "{'r': "+str(self.R)+", 'g': "+str(self.G)+", 'b': "+str(self.B)+"}"
 
 
 	def pintate_de_colores( self, tabla ):
 			for cachito_snake_bb in self.cuerpo_snake:
 				tabla.item( cachito_snake_bb[0], cachito_snake_bb[1] ).setBackground( QtGui.QColor( self.R, self.G, self.B ) )
-
+S = 0
 
 def colores_bonis():
 	R=G=B=0
@@ -218,8 +256,13 @@ def colores_bonis():
 	B = random.randint( 10, 255 )
 	return str(R)+" "+str(G)+" "+str(B)
 
-
+#SOBRE LA APP :V
 app = QtGui.QApplication(sys.argv)
 window = Servidor()
 window.show()
 sys.exit(app.exec_())
+
+#SOBRE EL SERVIDOR
+"""servidor = SimpleXMLRPCServer( ( "localhost", window.puerto ) )
+servidor.register_function( ping, "ping" )
+servidor.handle_request()"""
