@@ -27,7 +27,9 @@ class Servidor(QtGui.QMainWindow):
 		self.termina_juego.hide()
 		self.estado = Estado.EN_MARCHA
 		self.timer = QtCore.QTimer( self )
+		self.timer_servidor = QtCore.QTimer( self )
 		self.snakes_bebes = []
+		self.servidor = None
 		self.redimensionar()
 		self.poner_lienzo_celdas()
 		self.clickers()
@@ -54,7 +56,8 @@ class Servidor(QtGui.QMainWindow):
 		self.espera.valueChanged.connect( self.actualizar_espera )
 		self.estado_juego.clicked.connect( self.edo_del_juego )
 		self.termina_juego.clicked.connect( self.terminar_juego )
-		self.ping_pong.clicked.connect( self.ping )
+		self.timeout.valueChanged.connect( self.set_timeout )
+		#self.ping_pong.clicked.connect( self.ping )
 
 
 	def edo_del_juego( self ):
@@ -194,7 +197,7 @@ class Servidor(QtGui.QMainWindow):
 
 	def mueve_snakes( self ):
 		for snake_bb in self.snakes_bebes:
-			avanza_snakebb( snake_bb )
+			self.avanza_snakebb( snake_bb )
 
 		self.dibuja_snakes_bebes()
 
@@ -223,19 +226,43 @@ class Servidor(QtGui.QMainWindow):
 
 		avanza_snakebb( snake_bb )
 
+	def string( self, cuerpo_snake ):
+		for lista in cuerpo_snake:
+			t = tuple(lista)
+			lista = t
+		return str(cuerpo_snake)
 
 	def estado_del_juego( self ): #Ya habia hecho una que se llamaba asi :'c
 		estado = "{'espera': "+str(self.espera)+", 'tamX': "+str(self.columnas)+", 'tamY': "+str(self.filas)+", 'viboras': ["
 
 		for snake_bb in snakes_bebes:
-			espera += "{'id': "+snake_bb.id+", "+"'camino': "+str(snake_bb.cuerpo_snake)+", "+"'color':"+snake_bb.color+"},"
+			espera += "{'id': "+snake_bb.id+", "+"'camino': "+self.string(snake_bb.cuerpo_snake)+", "+"'color':"+snake_bb.color+"},"
 		return espera[:-1]+"]"
+
+
+	def servidor(self):
+		self.servidor = SimpleXMLRPCServer( ( self.url.text() , 0 ) )
+		self.servidor.timeout = 0
+		puerto = self.servidor.server_address[1] 
+		self.puerto.setValue(puerto)
+		self.servidor.register_function(self.ping)
+		self.servidor.register_function(self.yo_juego)
+		self.servidor.register_function(self.cambia_direccion)
+		self.servidor.register_function(self.estado_del_juego)
+		self.timer_servidor.connect( servidor.handle_request() )
+		self.timer_servidor.start( self.servidor.timeout )
+
+
+	def set_timeout( self ):
+		self.servidor.timeout = self.timeout.value()
+		self.timer_servidor.setInterval( self.timeout.value() )
+
 
 
 class Snake():
 	def __init__( self ):
 		global S
-		self.cuerpo_snake = [(0,0),(1,0),(2,0),(3,0),(4,0)]
+		self.cuerpo_snake = [[0,0],[1,0],[2,0],[3,0],[4,0]]
 		self.id = "snakebb"+str(S)
 		self.tamanio = len( self.cuerpo_snake )
 		self.direccion = Dir.ABAJO
@@ -261,8 +288,3 @@ app = QtGui.QApplication(sys.argv)
 window = Servidor()
 window.show()
 sys.exit(app.exec_())
-
-#SOBRE EL SERVIDOR
-"""servidor = SimpleXMLRPCServer( ( "localhost", window.puerto ) )
-servidor.register_function( ping, "ping" )
-servidor.handle_request()"""
