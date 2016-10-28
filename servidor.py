@@ -240,6 +240,9 @@ class Servidor(QtGui.QMainWindow):
 		return espera[:-1]+"]"
 
 
+	def peticiones( self ):
+		self.servidor.handle_request()
+
 	def servidor(self):
 		self.servidor = SimpleXMLRPCServer( ( self.url.text() , 0 ) )
 		self.servidor.timeout = 0
@@ -249,7 +252,7 @@ class Servidor(QtGui.QMainWindow):
 		self.servidor.register_function(self.yo_juego)
 		self.servidor.register_function(self.cambia_direccion)
 		self.servidor.register_function(self.estado_del_juego)
-		self.timer_servidor.connect( servidor.handle_request() )
+		self.timer_servidor.connect( self.peticiones )
 		self.timer_servidor.start( self.servidor.timeout )
 
 
