@@ -57,7 +57,7 @@ class Servidor(QtGui.QMainWindow):
 		self.estado_juego.clicked.connect( self.edo_del_juego )
 		self.termina_juego.clicked.connect( self.terminar_juego )
 		self.timeout.valueChanged.connect( self.set_timeout )
-		self.participar.clicked.connect( self.servidor )
+		self.ping.clicked.connect( self.servidor )
 
 
 	def edo_del_juego( self ):
